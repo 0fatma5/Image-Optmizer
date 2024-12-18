@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Optimizer</title>
+<style>
+/* Global styles */
+body {
+    font-family: 'Arial', 'Helvetica', sans-serif; /* Font style for the whole body */
+    background: linear-gradient(to right, #6a11cb, #2575fc); /* Gradient background */
+    color: white; /* Text color */
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column; /* Arrange content vertically */
+    align-items: center; /* Center content horizontally */
+    justify-content: center; /* Center content vertically */
+    min-height: 100vh; /* Full viewport height */
+    overflow-y: auto; /* Allow scrolling if needed */
+}
+
+/* Container styling */
+.container {
+    text-align: center; /* Center the text inside the container */
+    background: rgba(0, 0, 0, 0.5); /* Semi-transparent black background */
+    padding: 20px;
+    border-radius: 10px; /* Rounded corners for the container */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Shadow for a 3D effect */
+    width: 90%; /* Container takes 90% width */
+    max-width: 500px; /* Maximum width of the container */
+    box-sizing: border-box;
+}
+
+/* Button styles */
+.options button, .optimization-buttons button {
+    background: #8e44ad; /* Button background color */
+    color: white; /* Button text color */
+    border: none; /* No border */
+    padding: 10px 20px; /* Button padding */
+    border-radius: 5px; /* Rounded button corners */
+    cursor: pointer; /* Change cursor to pointer on hover */
+    transition: background 0.3s, color 0.3s, transform 0.2s; /* Smooth transition on hover */
+    margin: 10px;
+}
+
+/* Hover effect for buttons */
+.options button:hover, .optimization-buttons button:hover {
+    background: #a55eea; /* Light purple background on hover */
+    transform: scale(1.05); /* Slight zoom effect */
+}
+
+/* Image previews */
+.preview img {
+    max-width: 100%; /* Image takes full width of the container */
+    height: auto; /* Maintain aspect ratio */
+    margin: 10px; /* Margin around images */
+    border: 2px solid white; /* White border around images */
+    border-radius: 10px; /* Rounded corners for images */
+}
+
+/* Headings and text */
+h1, h3 {
+    margin: 10px 0; /* Margin above and below headings */
+    font-size: 1.5rem; /* Font size for headings */
+}
+
+/* Media Query for smaller screens */
+@media (max-width: 600px) {
+    .container {
+        width: 95%; /* 95% width for smaller screens */
+        padding: 10px;
+    }
+    h1 {
+        font-size: 1.2rem; /* Smaller font size for heading on small screens */
+    }
+    button {
+        padding: 8px 15px; /* Smaller button padding */
+        font-size: 0.9rem; /* Smaller font size for buttons */
+    }
+}
+</style>
+</head>
+<body>
+<!-- Main container for the page content -->
+<div class="container">
+    <h1>Image Optimizer</h1> <!-- Main heading for the page -->
+    
+    <!-- Options to select single or multiple images -->
+    <div class="options" id="imageUploadOptions">
+        <h3>Do you want to optimize one image or multiple images?</h3>
+        <button id="singleImageButton">One Image</button> <!-- Button to select one image -->
+        <button id="multipleImagesButton">Multiple Images</button> <!-- Button to select multiple images -->
+    </div>
+    
+    <!-- File input for selecting images, hidden initially -->
+    <input type="file" id="imageInput" accept="image/*" style="display: none;" multiple>
+    
+    <!-- Paragraph to show file information -->
+    <p id="fileInfo"></p>
+    
+    <!-- Preview area for displaying images -->
+    <div class="preview" id="imagePreview"></div>
+    
+    <!-- Options for image optimization will appear here -->
+    <div class="options" id="optimizationOptions"></div>
+    
+    <!-- Area for displaying optimized images -->
+    <div class="preview" id="optimizedImages"></div>
+</div>
+
+<script>
+// Get references to DOM elements
+const imageInput = document.getElementById('imageInput');
+const fileInfo = document.getElementById('fileInfo');
+const imagePreview = document.getElementById('imagePreview');
+const optimizationOptions = document.getElementById('optimizationOptions');
+const optimizedImages = document.getElementById('optimizedImages');
+const singleImageButton = document.getElementById('singleImageButton');
+const multipleImagesButton = document.getElementById('multipleImagesButton');
+
+// Event for selecting one image
+singleImageButton.addEventListener('click', () => {
+    imageInput.multiple = false; // Disable multiple files selection
+    imageInput.click(); // Trigger file selection dialog
+});
+
+// Event for selecting multiple images
+multipleImagesButton.addEventListener('click', () => {
+    imageInput.multiple = true; // Enable multiple files selection
+    imageInput.click(); // Trigger file selection dialog
+});
+
+// Handle file upload and preview images
+imageInput.addEventListener('change', async (event) => {
+    const files = Array.from(event.target.files); // Convert file list to array
+
+    if (files.length === 0) return; // Do nothing if no files are selected
+
+    imagePreview.innerHTML = ''; // Clear previous image previews
+    optimizedImages.innerHTML = ''; // Clear previous optimized images
+    fileInfo.textContent = ''; // Clear previous file info
+
+    // Iterate over the selected files and display them
+    files.forEach(async (file, index) => {
+        const originalImage = await displayImage(file); // Create image element from file
+        const fileWrapper = document.createElement('div');
+        fileWrapper.style.marginBottom = '20px'; // Add space between files
+        
+        // Add file name to the preview
+        const fileLabel = document.createElement('h4');
+        fileLabel.textContent = `Image ${index + 1}: ${file.name}`;
+        fileWrapper.appendChild(fileLabel);
+
+        // Append original image to the preview
+        fileWrapper.appendChild(originalImage);
+        imagePreview.appendChild(fileWrapper);
+
+        // Display file size and ask if the user wants optimization if the file is large
+        if (file.size > 2 * 1024 * 1024) { // If file is larger than 2MB
+            const fileInfo = document.createElement('p');
+            fileInfo.textContent = `File size: ${(file.size / 1024 / 1024).toFixed(2)} MB (Too large)`;
+            fileWrapper.appendChild(fileInfo);
+            askForOptimization(file, fileWrapper); // Ask user if they want to optimize the image
+        } else { // If file is within acceptable size
+            const fileInfo = document.createElement('p');
+            fileInfo.textContent = `File size: ${(file.size / 1024 / 1024).toFixed(2)} MB (Acceptable)`;
+            fileWrapper.appendChild(fileInfo);
+        }
+    });
+});
+
+// Ask user if they want to optimize the image
+function askForOptimization(file, wrapper) {
+    const optimizationWrapper = document.createElement('div');
+    optimizationWrapper.innerHTML = '<h3>Do you want to optimize this image?</h3>';
+
+    // Yes button to proceed with optimization
+    const yesButton = document.createElement('button');
+    yesButton.textContent = 'Yes';
+    yesButton.addEventListener('click', () => showOptimizationLevels(file, wrapper));
+    optimizationWrapper.appendChild(yesButton);
+
+    // No button to skip optimization
+    const noButton = document.createElement('button');
+    noButton.textContent = 'No';
+    noButton.style.marginLeft = '10px';
+    noButton.addEventListener('click', () => {
+        optimizationWrapper.innerHTML = 'Image will not be optimized.'; // Message if no optimization
+    });
+    optimizationWrapper.appendChild(noButton);
+
+    wrapper.appendChild(optimizationWrapper); // Add optimization options to the file wrapper
+}
+
+// Show optimization level buttons for the user
+function showOptimizationLevels(file, wrapper) {
+    const optimizationWrapper = document.createElement('div');
+    optimizationWrapper.innerHTML = '<h3>Choose Optimization Level:</h3>';
+
+    // Levels of optimization (quality percentage)
+    const levels = [75, 50, 25];
+    const optimizationButtonsWrapper = document.createElement('div');
+    optimizationButtonsWrapper.className = 'optimization-buttons';
+
+    // Create a button for each optimization level
+    levels.forEach(level => {
+        const button = document.createElement('button');
+        button.textContent = `${level}% Quality`; // Display optimization level
+        button.addEventListener('click', () => optimizeImage(file, level, wrapper)); // On click, optimize the image
+        optimizationButtonsWrapper.appendChild(button);
+    });
+
+    optimizationWrapper.appendChild(optimizationButtonsWrapper);
+    wrapper.appendChild(optimizationWrapper); // Add the optimization buttons to the file wrapper
+}
+
+// Display image on the page
+async function displayImage(file) {
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(file); // Convert file to object URL
+    await img.decode(); // Wait for the image to load
+    return img; // Return the image element
+}
+
+// Optimize the image and allow the user to download it
+async function optimizeImage(file, quality, wrapper) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = await displayImage(file);
+
+    canvas.width = img.naturalWidth; // Set canvas width to the image's width
+    canvas.height = img.naturalHeight; // Set canvas height to the image's height
+    ctx.drawImage(img, 0, 0); // Draw the image on the canvas
+
+    // Convert the canvas content to a data URL with the selected quality
+    const dataUrl = canvas.toDataURL('image/jpeg', quality / 100);
+    const optimizedImg = document.createElement('img');
+    optimizedImg.src = dataUrl;
+
+    const optimizedWrapper = document.createElement('div');
+    optimizedWrapper.className = 'optimized';
+
+    const label = document.createElement('h4');
+    label.textContent = `Optimized image to ${quality}% quality:`;
+    optimizedWrapper.appendChild(label);
+    optimizedWrapper.appendChild(optimizedImg);
+
+    // Create a download link for the optimized image
+    const downloadLink = document.createElement('a');
+    downloadLink.textContent = 'Download';
+    downloadLink.href = dataUrl;
+    downloadLink.download = `optimized-${quality}.jpg`; // Set download file name
+    downloadLink.style.display = 'block';
+    downloadLink.style.marginTop = '10px';
+    optimizedWrapper.appendChild(downloadLink);
+
+    wrapper.appendChild(optimizedWrapper); // Add the optimized image and download link to the wrapper
+}
+</script>
+</body>
+</html>
