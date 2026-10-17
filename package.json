@@ -1,0 +1,8 @@
+{
+  "name": "browser-image-optimizer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Client-side browser image resizing and compression",
+  "scripts": { "test": "node --test" }
+}
